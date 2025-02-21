@@ -32,6 +32,9 @@ def process_aws_invoices(directory, output_file):
     all_data = []
     for file in files:
         df = pd.read_csv(file)
+
+        # 条件0: PayerLineItemId が存在 (Payer アカウントの情報だけを取得)
+        condition0 = df['RecordType'] == 'PayerLineItem'
         
         # 条件1: ProductName が Amazon Simple Storage Service
         condition1 = df['ProductName'] == 'Amazon Simple Storage Service'
@@ -42,7 +45,7 @@ def process_aws_invoices(directory, output_file):
         )
 
         # フィルタリングの実施
-        filtered_df = df[condition1 & condition2].copy()
+        filtered_df = df[condition0 & condition1 & condition2].copy()
 
         # 必要な列を抽出し、変換
         filtered_df['storge_type_raw'] = filtered_df['UsageType']
