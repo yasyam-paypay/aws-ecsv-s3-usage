@@ -8,41 +8,46 @@ def process_aws_invoice(input_file, output_file):
     condition1 = df['ProductName'] == 'Amazon Simple Storage Service'
 
     # 条件2: UsageType の末尾が指定されたパターンであるか
-    usage_patterns = [
-        'TimedStorage-ByteHrs',
-        'TimedStorage-GDA-ByteHrs',
-        'TimedStorage-GDA-Staging',
-        'TimedStorage-GIR-ByteHrs',
-        'TimedStorage-GIR-SmObjects',
-        'TimedStorage-GlacierByteHrs',
-        'TimedStorage-GlacierStaging',
-        'TimedStorage-INT-FA-ByteHrs',
-        'TimedStorage-INT-IA-ByteHrs',
-        'TimedStorage-INT-AA-ByteHrs',
-        'TimedStorage-INT-AIA-ByteHrs',
-        'TimedStorage-INT-DAA-ByteHrs',
-        'TimedStorage-RRS-ByteHrs',
-        'TimedStorage-SIA-ByteHrs',
-        'TimedStorage-SIA-SmObjects',
-        'TimedStorage-XZ-ByteHrs',
-        'TimedStorage-ZIA-ByteHrs',
-        'TimedStorage-ZIA-SmObjects'
-    ]
+    usage_patterns = {
+        'TimedStorage-ByteHrs': 'S3 Standard',
+        'TimedStorage-GDA-ByteHrs': 'S3 Glacier Deep Archive',
+        'TimedStorage-GDA-Staging': 'S3 Glacier Deep Archive Staging',
+        'TimedStorage-GIR-ByteHrs': 'S3 Glacier Instant Retrieval',
+        'TimedStorage-GIR-SmObjects': 'S3 Glacier Flexible Retrieval (Small Objects)',
+        'TimedStorage-GlacierByteHrs': 'S3 Glacier Flexible Retrieval',
+        'TimedStorage-GlacierStaging': 'S3 Glacier Flexible Retrieval Staging',
+        'TimedStorage-INT-FA-ByteHrs': 'S3 Intelligent-Tiering (Frequent Access)',
+        'TimedStorage-INT-IA-ByteHrs': 'S3 Intelligent-Tiering (Infrequent Access)',
+        'TimedStorage-INT-AA-ByteHrs': 'S3 Intelligent-Tiering (Archive Access)',
+        'TimedStorage-INT-AIA-ByteHrs': 'S3 Intelligent-Tiering (Archive Instant Access)',
+        'TimedStorage-INT-DAA-ByteHrs': 'S3 Intelligent-Tiering (Deep Archive Access)',
+        'TimedStorage-RRS-ByteHrs': 'Reduced Redundancy Storage (RRS)',
+        'TimedStorage-SIA-ByteHrs': 'S3 Standard-IA',
+        'TimedStorage-SIA-SmObjects': 'S3 Standard-IA (Small Objects)',
+        'TimedStorage-XZ-ByteHrs': 'S3 Express One Zone',
+        'TimedStorage-ZIA-ByteHrs': 'S3 One Zone-IA',
+        'TimedStorage-ZIA-SmObjects': 'S3 One Zone-IA (Small Objects)'
+    }
 
     # usage_patternsのどれかでUsageTypeが終わるかをチェック
-    condition2 = df['UsageType'].apply(lambda x: isinstance(x, str) and any(x.endswith(pattern) for pattern in usage_patterns))
+    condition2 = df['UsageType'].apply(
+        lambda x: isinstance(x, str) and any(x.endswith(pattern) for pattern in usage_patterns.keys())
+    )
 
     # フィルタリングの実施
-    filtered_df = df[condition1 & condition2].copy()  # .copy()でコピーを作成
+    filtered_df = df[condition1 & condition2].copy()
 
     # 必要な列を抽出し、変換
-    filtered_df.loc[:, 'region'] = filtered_df['UsageType'].str.split('-').str[0]
-    filtered_df.loc[:, 'year_month'] = pd.to_datetime(filtered_df['UsageStartDate']).dt.strftime('%Y-%m')
-    filtered_df.loc[:, 'storge_type'] = filtered_df['UsageType']
-    filtered_df.loc[:, 'usage_quantity'] = filtered_df['UsageQuantity']
+    filtered_df['storge_type_raw'] = filtered_df['UsageType']
+    filtered_df['region'] = filtered_df['UsageType'].str.split('-').str[0]
+    filtered_df['year_month'] = pd.to_datetime(filtered_df['UsageStartDate']).dt.strftime('%Y-%m')
+    filtered_df['storge_type'] = filtered_df['UsageType'].apply(
+        lambda x: next((usage_patterns[pattern] for pattern in usage_patterns if x.endswith(pattern)), 'Unknown')
+    )
+    filtered_df['usage_quantity'] = filtered_df['UsageQuantity']
 
     # 結果を出力用のDataFrameに整形
-    result_df = filtered_df[['region', 'year_month', 'storge_type', 'usage_quantity']]
+    result_df = filtered_df[['region', 'year_month', 'storge_type_raw', 'storge_type', 'usage_quantity']]
 
     # 結果をCSVに書き込み
     result_df.to_csv(output_file, index=False)
