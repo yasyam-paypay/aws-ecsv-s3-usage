@@ -51,20 +51,26 @@ def process_aws_invoices(directory, output_file):
         filtered_df['storge_type'] = filtered_df['UsageType'].apply(
             lambda x: next((usage_patterns[pattern] for pattern in usage_patterns if x.endswith(pattern)), 'Unknown')
         )
-        filtered_df['usage_quantity'] = filtered_df['UsageQuantity']
+        filtered_df['GB-Month'] = filtered_df['UsageQuantity']
 
         # 必要な列のDataFrame
-        processed_df = filtered_df[['region', 'year_month', 'storge_type_raw', 'storge_type', 'usage_quantity']]
+        processed_df = filtered_df[['region', 'year_month', 'storge_type', 'storge_type_raw', 'GB-Month']]
         
         # 処理したDataFrameをリストに追加
         all_data.append(processed_df)
         print(f"{file} を処理しました。")
 
     # 全てのデータフレームを1つに結合
-    result_df = pd.concat(all_data, ignore_index=True)
+    combined_df = pd.concat(all_data, ignore_index=True)
+
+    # year_month, storge_type_raw, region, storge_type で groupby し、GB-Month を合計
+    aggregated_df = combined_df.groupby(
+        ['region', 'year_month', 'storge_type', 'storge_type_raw'], as_index=False
+    )['GB-Month'].sum()
 
     # 結果をCSVに書き込み
-    result_df.to_csv(output_file, index=False)
+    aggregated_df.to_csv(output_file, index=False)
+    print(f"データが {output_file} に保存されました。")
 
 # メインスクリプトの実行
 if __name__ == "__main__":
@@ -72,4 +78,3 @@ if __name__ == "__main__":
     output_csv = 'result.csv'  # 出力ファイル名
 
     process_aws_invoices(input_directory, output_csv)
-    print(f"データが {output_csv} に保存されました。")
