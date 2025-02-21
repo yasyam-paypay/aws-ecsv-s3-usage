@@ -49,7 +49,9 @@ def process_aws_invoices(directory, output_file):
 
         # 必要な列を抽出し、変換
         filtered_df['storge_type_raw'] = filtered_df['UsageType']
-        filtered_df['region'] = filtered_df['UsageType'].str.split('-').str[0]
+        filtered_df['region'] = filtered_df['UsageType'].apply(
+            lambda x: x.split('-')[0] if x.split('-')[0] != 'TimedStorage' else 'USE1'
+        )
         filtered_df['year_month'] = pd.to_datetime(filtered_df['UsageStartDate']).dt.strftime('%Y-%m')
         filtered_df['storge_type'] = filtered_df['UsageType'].apply(
             lambda x: next((usage_patterns[pattern] for pattern in usage_patterns if x.endswith(pattern)), 'Unknown')
